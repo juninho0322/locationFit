@@ -1,5 +1,5 @@
 import type { FitResult } from '../types';
-import { formatOrientationDimensions } from '../utils/fitCalculator';
+import { formatMeasurement, formatOrientationDimensions } from '../utils/fitCalculator';
 
 interface ResultsPanelProps {
   result: FitResult | null;
@@ -42,12 +42,17 @@ export function ResultsPanel({ result }: ResultsPanelProps) {
         <ResultRow label="Boxes across depth" value={result.boxesAcrossDepth} />
         <ResultRow label="Boxes across height" value={result.boxesAcrossHeight} />
         <ResultRow label="Total location capacity" value={result.totalCapacity} />
-        <ResultRow label="Location volume" value={`${result.locationVolume} cm3`} />
+        <ResultRow label="Location volume" value={`${formatMeasurement(result.locationVolume)} cm3`} />
         <ResultRow
           label="Loaded box volume"
-          value={`${result.usedWidth} W x ${result.usedDepth} D x ${result.usedHeight} H cm`}
+          value={`${formatMeasurement(result.usedWidth)} W x ${formatMeasurement(
+            result.usedDepth,
+          )} D x ${formatMeasurement(result.usedHeight)} H cm`}
         />
-        <ResultRow label="Volume used" value={`${result.usedVolume} cm3 (${result.volumeUtilization}%)`} />
+        <ResultRow
+          label="Volume used"
+          value={`${formatMeasurement(result.usedVolume)} cm3 (${result.volumeUtilization}%)`}
+        />
         <ResultRow label="Boxes plotted in shelf" value={result.boxesThatFit} />
         <ResultRow label="Units per box" value={result.requestedQuantity} />
         <ResultRow label="Total units stored" value={result.totalUnits} />

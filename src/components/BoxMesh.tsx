@@ -1,6 +1,7 @@
-import { Edges, Text } from '@react-three/drei';
+import { Billboard, Edges, Line, Text } from '@react-three/drei';
 import { useMemo } from 'react';
 import type { BoxPosition, Location, Orientation } from '../types';
+import { formatMeasurement } from '../utils/fitCalculator';
 
 interface BoxMeshProps {
   box: BoxPosition;
@@ -24,8 +25,11 @@ export function BoxMesh({
       ] as const,
     [box.x, box.y, box.z, location.depth, location.width],
   );
-  const labelSize = Math.max(2.8, Math.min(box.width, box.depth, box.height) * 0.18);
-  const faceOffset = 0.08;
+  const labelSize = Math.max(2.8, Math.min(box.width, box.depth, box.height) * 0.2);
+  const lineOffset = labelSize * 0.75;
+  const widthLabel = `W - ${formatMeasurement(orientation.width)} cm`;
+  const depthLabel = `D - ${formatMeasurement(orientation.depth)} cm`;
+  const heightLabel = `H - ${formatMeasurement(orientation.height)} cm`;
 
   return (
     <group position={[targetPosition[0], targetPosition[1], targetPosition[2]]}>
@@ -39,38 +43,62 @@ export function BoxMesh({
       </mesh>
       {isReferenceBox && (
         <>
-          <Text
-            color="#020617"
-            fontSize={labelSize}
-            maxWidth={box.width * 0.9}
-            outlineColor="#fef3c7"
-            outlineWidth={labelSize * 0.035}
-            position={[0, box.height / 2 + faceOffset, box.depth / 2 + faceOffset]}
-          >
-            {`W - ${orientation.width} cm`}
-          </Text>
-          <Text
-            color="#020617"
-            fontSize={labelSize}
-            maxWidth={box.depth * 0.9}
-            outlineColor="#fef3c7"
-            outlineWidth={labelSize * 0.035}
-            position={[0, box.height / 2 + faceOffset, 0]}
-            rotation={[-Math.PI / 2, 0, 0]}
-          >
-            {`D - ${orientation.depth} cm`}
-          </Text>
-          <Text
-            color="#020617"
-            fontSize={labelSize}
-            maxWidth={box.height * 0.9}
-            outlineColor="#fef3c7"
-            outlineWidth={labelSize * 0.035}
-            position={[box.width / 2 + faceOffset, 0, 0]}
-            rotation={[0, Math.PI / 2, 0]}
-          >
-            {`H - ${orientation.height} cm`}
-          </Text>
+          <Line
+            color="#22d3ee"
+            lineWidth={2}
+            points={[
+              [-box.width / 2, box.height / 2 + lineOffset, box.depth / 2 + lineOffset],
+              [box.width / 2, box.height / 2 + lineOffset, box.depth / 2 + lineOffset],
+            ]}
+          />
+          <Billboard position={[0, box.height / 2 + lineOffset * 1.35, box.depth / 2 + lineOffset]}>
+            <Text
+              color="#cffafe"
+              fontSize={labelSize}
+              outlineColor="#020617"
+              outlineWidth={labelSize * 0.045}
+            >
+              {widthLabel}
+            </Text>
+          </Billboard>
+
+          <Line
+            color="#f59e0b"
+            lineWidth={2}
+            points={[
+              [box.width / 2 + lineOffset, box.height / 2 + lineOffset, -box.depth / 2],
+              [box.width / 2 + lineOffset, box.height / 2 + lineOffset, box.depth / 2],
+            ]}
+          />
+          <Billboard position={[box.width / 2 + lineOffset * 1.3, box.height / 2 + lineOffset * 1.35, 0]}>
+            <Text
+              color="#fde68a"
+              fontSize={labelSize}
+              outlineColor="#020617"
+              outlineWidth={labelSize * 0.045}
+            >
+              {depthLabel}
+            </Text>
+          </Billboard>
+
+          <Line
+            color="#34d399"
+            lineWidth={2}
+            points={[
+              [box.width / 2 + lineOffset, -box.height / 2, box.depth / 2 + lineOffset],
+              [box.width / 2 + lineOffset, box.height / 2, box.depth / 2 + lineOffset],
+            ]}
+          />
+          <Billboard position={[box.width / 2 + lineOffset * 1.45, 0, box.depth / 2 + lineOffset * 1.2]}>
+            <Text
+              color="#bbf7d0"
+              fontSize={labelSize}
+              outlineColor="#020617"
+              outlineWidth={labelSize * 0.045}
+            >
+              {heightLabel}
+            </Text>
+          </Billboard>
         </>
       )}
     </group>

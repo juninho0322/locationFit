@@ -11,6 +11,9 @@ const numberFields = [
   { key: 'height', label: 'Height (cm)' },
 ] as const;
 
+const decimalPattern = /^\d*\.?\d*$/;
+const normalizeDecimal = (value: string) => Number.parseFloat(value);
+
 export function LocationForm({ onAddLocation }: LocationFormProps) {
   const [name, setName] = useState('');
   const [dimensions, setDimensions] = useState({
@@ -21,9 +24,9 @@ export function LocationForm({ onAddLocation }: LocationFormProps) {
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const width = Math.max(1, Number(dimensions.width) || 1);
-    const depth = Math.max(1, Number(dimensions.depth) || 1);
-    const height = Math.max(1, Number(dimensions.height) || 1);
+    const width = Math.max(0.01, normalizeDecimal(dimensions.width) || 1);
+    const depth = Math.max(0.01, normalizeDecimal(dimensions.depth) || 1);
+    const height = Math.max(0.01, normalizeDecimal(dimensions.height) || 1);
 
     const locationName = name.trim() || `Location ${new Date().toLocaleTimeString()}`;
     onAddLocation({
@@ -42,7 +45,7 @@ export function LocationForm({ onAddLocation }: LocationFormProps) {
   };
 
   const updateDimension = (key: keyof typeof dimensions, value: string) => {
-    if (!/^\d*$/.test(value)) {
+    if (!decimalPattern.test(value)) {
       return;
     }
 
@@ -55,7 +58,7 @@ export function LocationForm({ onAddLocation }: LocationFormProps) {
   const normalizeDimension = (key: keyof typeof dimensions) => {
     setDimensions((current) => ({
       ...current,
-      [key]: String(Math.max(1, Number(current[key]) || 1)),
+      [key]: String(Math.max(0.01, normalizeDecimal(current[key]) || 1)),
     }));
   };
 
@@ -83,8 +86,8 @@ export function LocationForm({ onAddLocation }: LocationFormProps) {
             <input
               id={`location-${field.key}`}
               className="mt-2 w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none transition focus:border-cyan-400"
-              inputMode="numeric"
-              pattern="[0-9]*"
+              inputMode="decimal"
+              pattern="[0-9]*[.]?[0-9]*"
               type="text"
               value={dimensions[field.key]}
               onChange={(event) =>

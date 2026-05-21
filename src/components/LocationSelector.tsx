@@ -1,4 +1,5 @@
 import type { Location } from '../types';
+import { formatMeasurement } from '../utils/fitCalculator';
 
 interface LocationSelectorProps {
   locations: Location[];
@@ -35,7 +36,8 @@ export function LocationSelector({
         >
           {locations.map((location) => (
             <option key={location.id} value={location.id}>
-              {location.name} - {location.width} x {location.depth} x {location.height} cm
+              {location.name} - {formatMeasurement(location.width)} x{' '}
+              {formatMeasurement(location.depth)} x {formatMeasurement(location.height)} cm
             </option>
           ))}
         </select>

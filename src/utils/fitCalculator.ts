@@ -13,6 +13,9 @@ const sourceLabel: Record<DimensionKey, string> = {
   height: 'box height',
 };
 
+const formatNumber = (value: number) =>
+  Number.isInteger(value) ? String(value) : value.toFixed(2).replace(/\.?0+$/, '');
+
 export const getBoxOrientations = (box: BoxDimensions): Orientation[] => [
   {
     id: 'width-depth-height',
@@ -76,7 +79,11 @@ export const describeOrientation = (orientation: Orientation): string =>
   `${sourceLabel[orientation.heightSource]} goes along shelf height.`;
 
 export const formatOrientationDimensions = (orientation: Orientation): string =>
-  `${orientation.width} W x ${orientation.depth} D x ${orientation.height} H cm`;
+  `${formatNumber(orientation.width)} W x ${formatNumber(orientation.depth)} D x ${formatNumber(
+    orientation.height,
+  )} H cm`;
+
+export const formatMeasurement = (value: number): string => formatNumber(value);
 
 const hasPositiveDimensions = (location: Location, box: BoxDimensions) =>
   location.width > 0 &&

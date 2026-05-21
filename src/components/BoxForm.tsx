@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import type { BoxDimensions } from '../types';
 
 interface BoxFormProps {
@@ -14,6 +14,13 @@ const fields = [
   { key: 'quantity', label: 'Units per box' },
 ] as const;
 
+const decimalKeys = new Set<keyof BoxDimensions>(['width', 'depth', 'height']);
+const decimalPattern = /^\d*\.?\d*$/;
+const integerPattern = /^\d*$/;
+const parseDimension = (value: string) => Number.parseFloat(value);
+const isIncompleteDecimal = (value: string) =>
+  value === '' || value === '.' || value.endsWith('.');
+
 export function BoxForm({ box, disabled = false, onChange }: BoxFormProps) {
   const [values, setValues] = useState<Record<keyof BoxDimensions, string>>({
     width: String(box.width),
@@ -22,17 +29,9 @@ export function BoxForm({ box, disabled = false, onChange }: BoxFormProps) {
     quantity: String(box.quantity),
   });
 
-  useEffect(() => {
-    setValues({
-      width: String(box.width),
-      depth: String(box.depth),
-      height: String(box.height),
-      quantity: String(box.quantity),
-    });
-  }, [box]);
-
   const updateBox = (key: keyof BoxDimensions, value: string) => {
-    if (!/^\d*$/.test(value)) {
+    const pattern = decimalKeys.has(key) ? decimalPattern : integerPattern;
+    if (!pattern.test(value)) {
       return;
     }
 
@@ -41,16 +40,27 @@ export function BoxForm({ box, disabled = false, onChange }: BoxFormProps) {
       [key]: value,
     }));
 
+    if (decimalKeys.has(key) && isIncompleteDecimal(value)) {
+      return;
+    }
+
     if (value !== '') {
+      const parsedValue = decimalKeys.has(key)
+        ? parseDimension(value)
+        : Number.parseInt(value, 10);
+
       onChange({
         ...box,
-        [key]: Math.max(1, Number(value) || 1),
+        [key]: Math.max(decimalKeys.has(key) ? 0.01 : 1, parsedValue || 1),
       });
     }
   };
 
   const normalizeBox = (key: keyof BoxDimensions) => {
-    const value = Math.max(1, Number(values[key]) || 1);
+    const parsedValue = decimalKeys.has(key)
+      ? parseDimension(values[key])
+      : Number.parseInt(values[key], 10);
+    const value = Math.max(decimalKeys.has(key) ? 0.01 : 1, parsedValue || 1);
     setValues((current) => ({
       ...current,
       [key]: String(value),
@@ -72,8 +82,8 @@ export function BoxForm({ box, disabled = false, onChange }: BoxFormProps) {
             id={`box-${field.key}`}
             className="mt-2 w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none transition focus:border-cyan-400 disabled:cursor-not-allowed disabled:border-slate-800 disabled:bg-slate-900 disabled:text-slate-500"
             disabled={disabled}
-            inputMode="numeric"
-            pattern="[0-9]*"
+            inputMode={decimalKeys.has(field.key) ? 'decimal' : 'numeric'}
+            pattern={decimalKeys.has(field.key) ? '[0-9]*[.]?[0-9]*' : '[0-9]*'}
             type="text"
             value={values[field.key]}
             onChange={(event) => updateBox(field.key, event.target.value)}
