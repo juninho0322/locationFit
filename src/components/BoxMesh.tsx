@@ -1,13 +1,59 @@
 import { Billboard, Edges, Line, Text } from '@react-three/drei';
 import { useMemo } from 'react';
 import type { BoxPosition, Location, Orientation } from '../types';
-import { formatMeasurement } from '../utils/fitCalculator';
+import { formatMeasurement, getDimensionShortLabel } from '../utils/fitCalculator';
 
 interface BoxMeshProps {
   box: BoxPosition;
   isReferenceBox?: boolean;
   location: Location;
   orientation: Orientation;
+}
+
+interface StickerLabelProps {
+  color: string;
+  label: string;
+  labelSize: number;
+  position: [number, number, number];
+}
+
+function StickerLabel({
+  color,
+  label,
+  labelSize,
+  position,
+}: StickerLabelProps) {
+  const width = Math.max(labelSize * 5.6, label.length * labelSize * 0.48);
+  const height = labelSize * 1.55;
+
+  return (
+    <Billboard position={position}>
+      <mesh position={[0, 0, -0.04]}>
+        <planeGeometry args={[width, height]} />
+        <meshBasicMaterial color="#020617" transparent opacity={0.9} />
+      </mesh>
+      <Line
+        color={color}
+        lineWidth={2}
+        points={[
+          [-width / 2, -height / 2, 0],
+          [width / 2, -height / 2, 0],
+          [width / 2, height / 2, 0],
+          [-width / 2, height / 2, 0],
+          [-width / 2, -height / 2, 0],
+        ]}
+      />
+      <Text
+        color={color}
+        fontSize={labelSize}
+        outlineColor="#020617"
+        outlineWidth={labelSize * 0.045}
+        position={[0, 0, 0.03]}
+      >
+        {label}
+      </Text>
+    </Billboard>
+  );
 }
 
 export function BoxMesh({
@@ -25,11 +71,18 @@ export function BoxMesh({
       ] as const,
     [box.x, box.y, box.z, location.depth, location.width],
   );
-  const labelSize = Math.max(2.8, Math.min(box.width, box.depth, box.height) * 0.2);
-  const lineOffset = labelSize * 0.75;
-  const widthLabel = `W - ${formatMeasurement(orientation.width)} cm`;
-  const depthLabel = `D - ${formatMeasurement(orientation.depth)} cm`;
-  const heightLabel = `H - ${formatMeasurement(orientation.height)} cm`;
+  const labelSize = Math.max(4, Math.min(box.width, box.depth, box.height) * 0.22);
+  const lineLift = Math.max(0.1, labelSize * 0.03);
+  const stickerOffset = labelSize * 1.25;
+  const widthLabel = `${getDimensionShortLabel(orientation.widthSource)} - ${formatMeasurement(
+    orientation.width,
+  )} cm`;
+  const depthLabel = `${getDimensionShortLabel(orientation.depthSource)} - ${formatMeasurement(
+    orientation.depth,
+  )} cm`;
+  const heightLabel = `${getDimensionShortLabel(orientation.heightSource)} - ${formatMeasurement(
+    orientation.height,
+  )} cm`;
 
   return (
     <group position={[targetPosition[0], targetPosition[1], targetPosition[2]]}>
@@ -45,60 +98,48 @@ export function BoxMesh({
         <>
           <Line
             color="#22d3ee"
-            lineWidth={2}
+            lineWidth={4}
             points={[
-              [-box.width / 2, box.height / 2 + lineOffset, box.depth / 2 + lineOffset],
-              [box.width / 2, box.height / 2 + lineOffset, box.depth / 2 + lineOffset],
+              [-box.width / 2, box.height / 2 + lineLift, box.depth / 2 + lineLift],
+              [box.width / 2, box.height / 2 + lineLift, box.depth / 2 + lineLift],
             ]}
           />
-          <Billboard position={[0, box.height / 2 + lineOffset * 1.35, box.depth / 2 + lineOffset]}>
-            <Text
-              color="#cffafe"
-              fontSize={labelSize}
-              outlineColor="#020617"
-              outlineWidth={labelSize * 0.045}
-            >
-              {widthLabel}
-            </Text>
-          </Billboard>
+          <StickerLabel
+            color="#22d3ee"
+            label={widthLabel}
+            labelSize={labelSize}
+            position={[0, box.height / 2 + stickerOffset, box.depth / 2 + stickerOffset]}
+          />
 
           <Line
             color="#f59e0b"
-            lineWidth={2}
+            lineWidth={4}
             points={[
-              [box.width / 2 + lineOffset, box.height / 2 + lineOffset, -box.depth / 2],
-              [box.width / 2 + lineOffset, box.height / 2 + lineOffset, box.depth / 2],
+              [box.width / 2 + lineLift, box.height / 2 + lineLift, -box.depth / 2],
+              [box.width / 2 + lineLift, box.height / 2 + lineLift, box.depth / 2],
             ]}
           />
-          <Billboard position={[box.width / 2 + lineOffset * 1.3, box.height / 2 + lineOffset * 1.35, 0]}>
-            <Text
-              color="#fde68a"
-              fontSize={labelSize}
-              outlineColor="#020617"
-              outlineWidth={labelSize * 0.045}
-            >
-              {depthLabel}
-            </Text>
-          </Billboard>
+          <StickerLabel
+            color="#f59e0b"
+            label={depthLabel}
+            labelSize={labelSize}
+            position={[box.width / 2 + stickerOffset, box.height / 2 + stickerOffset, 0]}
+          />
 
           <Line
             color="#34d399"
-            lineWidth={2}
+            lineWidth={4}
             points={[
-              [box.width / 2 + lineOffset, -box.height / 2, box.depth / 2 + lineOffset],
-              [box.width / 2 + lineOffset, box.height / 2, box.depth / 2 + lineOffset],
+              [box.width / 2 + lineLift, -box.height / 2, box.depth / 2 + lineLift],
+              [box.width / 2 + lineLift, box.height / 2, box.depth / 2 + lineLift],
             ]}
           />
-          <Billboard position={[box.width / 2 + lineOffset * 1.45, 0, box.depth / 2 + lineOffset * 1.2]}>
-            <Text
-              color="#bbf7d0"
-              fontSize={labelSize}
-              outlineColor="#020617"
-              outlineWidth={labelSize * 0.045}
-            >
-              {heightLabel}
-            </Text>
-          </Billboard>
+          <StickerLabel
+            color="#34d399"
+            label={heightLabel}
+            labelSize={labelSize}
+            position={[box.width / 2 + stickerOffset, 0, box.depth / 2 + stickerOffset]}
+          />
         </>
       )}
     </group>
