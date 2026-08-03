@@ -12,9 +12,12 @@
   "dependencies": {
     "@react-three/drei": "^10.0.0",
     "@react-three/fiber": "^9.0.0",
-    "three": "^0.175.0",
+    "jspdf": "^4.2.1",
+    "lucide-react": "^1.28.0",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "react-spreadsheet": "^0.10.1",
+    "three": "^0.175.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.0.0",

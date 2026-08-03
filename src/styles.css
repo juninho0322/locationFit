@@ -23,3 +23,121 @@ select,
 button {
   font: inherit;
 }
+
+.warehouse-spreadsheet {
+  max-height: calc(100vh - 210px);
+}
+
+.warehouse-spreadsheet .Spreadsheet {
+  display: inline-block;
+  min-width: 100%;
+  color: #e2e8f0;
+  background: #020617;
+}
+
+.warehouse-spreadsheet .Spreadsheet__table {
+  border-collapse: collapse;
+  min-width: 100%;
+  table-layout: fixed;
+  width: max-content;
+}
+
+.warehouse-spreadsheet .Spreadsheet__header {
+  position: relative;
+  min-width: 76px;
+  height: 38px;
+  border: 1px solid #1e293b;
+  background: #0f172a;
+  color: #67e8f9;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.warehouse-spreadsheet .Spreadsheet__header-label {
+  display: block;
+  overflow: hidden;
+  padding: 0 0.85rem;
+  text-overflow: ellipsis;
+}
+
+.warehouse-spreadsheet .Spreadsheet__resize-handle {
+  bottom: 0;
+  cursor: col-resize;
+  position: absolute;
+  right: -6px;
+  touch-action: none;
+  top: 0;
+  width: 12px;
+  z-index: 2;
+}
+
+.warehouse-spreadsheet .Spreadsheet__row-indicator {
+  cursor: pointer;
+  min-width: 52px;
+  width: 52px;
+}
+
+.warehouse-spreadsheet .Spreadsheet__cell {
+  min-width: 76px;
+  height: 36px;
+  border: 1px solid #1e293b;
+  background: #020617;
+  color: #e2e8f0;
+  font-size: 0.875rem;
+  line-height: 1.2;
+  outline: none;
+}
+
+.warehouse-spreadsheet .Spreadsheet__cell:focus,
+.warehouse-spreadsheet .Spreadsheet__cell--active {
+  box-shadow: inset 0 0 0 2px #22d3ee;
+}
+
+.warehouse-spreadsheet .Spreadsheet__cell--selected,
+.warehouse-spreadsheet .Spreadsheet__header--selected {
+  background: rgba(34, 211, 238, 0.12);
+}
+
+.warehouse-spreadsheet .Spreadsheet__row--selected .Spreadsheet__cell {
+  background: rgba(34, 211, 238, 0.08);
+}
+
+.warehouse-spreadsheet .Spreadsheet__row--selected .Spreadsheet__cell:focus,
+.warehouse-spreadsheet .Spreadsheet__row--selected .Spreadsheet__cell--active {
+  background: rgba(34, 211, 238, 0.12);
+}
+
+.warehouse-spreadsheet .Spreadsheet__data-viewer {
+  display: block;
+  width: 100%;
+  overflow: hidden;
+  padding: 0.45rem 0.65rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.warehouse-spreadsheet .Spreadsheet__data-editor {
+  height: 100%;
+}
+
+.warehouse-spreadsheet .Spreadsheet__data-editor input {
+  height: 100%;
+  width: 100%;
+  border: 0;
+  background: #0f172a;
+  color: #f8fafc;
+  outline: none;
+  padding: 0.45rem 0.65rem;
+}
+
+.warehouse-spreadsheet .Spreadsheet__active-cell {
+  border-color: #22d3ee;
+  box-shadow: 0 0 0 1px #22d3ee;
+}
+
+.warehouse-spreadsheet .Spreadsheet__floating-rect {
+  border-color: rgba(34, 211, 238, 0.7);
+  background: rgba(34, 211, 238, 0.08);
+}
