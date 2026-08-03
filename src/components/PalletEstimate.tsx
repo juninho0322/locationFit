@@ -58,6 +58,14 @@ const formatVolume = (value: number, unit: VolumeUnit) =>
     unit === 'm3' ? 'm3' : unit === 'litres' ? 'L' : 'cm3'
   }`;
 
+const getPackingModeLabel = (packingMode: PackingMode) =>
+  packingModeOptions.find((option) => option.id === packingMode)?.label ?? packingMode;
+
+const formatPalletDimensions = (palletType: { depth: number; height: number; width: number }) =>
+  `${formatNumber(palletType.width)} x ${formatNumber(palletType.depth)} x ${formatNumber(
+    palletType.height,
+  )} cm`;
+
 function MetricCard({
   helper,
   label,
@@ -73,6 +81,130 @@ function MetricCard({
       <p className="mt-2 text-2xl font-semibold text-white">{value}</p>
       {helper && <p className="mt-2 text-xs text-slate-500">{helper}</p>}
     </div>
+  );
+}
+
+function CalculationAudit({
+  estimate,
+  orderLines,
+  packConfig,
+  packingMode,
+  selectedPalletType,
+}: {
+  estimate: PalletEstimateResult | null;
+  orderLines: SheetData;
+  packConfig: SheetData;
+  packingMode: PackingMode;
+  selectedPalletType: ReturnType<typeof createLocationPalletType> | null;
+}) {
+  const palletType = estimate?.palletType ?? selectedPalletType;
+  const palletVolume = estimate?.palletVolume ?? (
+    palletType ? palletType.width * palletType.depth * palletType.height : 0
+  );
+  const theoreticalMinimumPallets =
+    estimate && palletVolume > 0 ? Math.ceil(estimate.totalVolume / palletVolume) : 0;
+  const orderRowsWithData = countRowsWithCells(orderLines, [0, 2]);
+  const packRowsWithData = countRowsWithCells(packConfig, [0, 1, 2, 3, 4, 5]);
+  const auditSnapshot = {
+    invalidPackConfigs: estimate?.invalidPackConfigs.length ?? 0,
+    matchedSkus: estimate?.skus.length ?? 0,
+    missingPackConfigs: estimate?.missingPackConfigs.length ?? 0,
+    orderRowsWithData,
+    oversizedSkus: estimate?.oversizedSkus.length ?? 0,
+    packRowsWithData,
+    palletCapacityM3: convertFromCubicCentimeters(palletVolume, packConfigVolumeUnit),
+    palletDimensionsCm: palletType
+      ? { depth: palletType.depth, height: palletType.height, width: palletType.width }
+      : null,
+    pallets: estimate?.pallets.length ?? 0,
+    restackMethod: getPackingModeLabel(packingMode),
+    theoreticalMinimumPallets,
+    totalBoxes: estimate?.totalBoxes ?? 0,
+    totalBoxVolumeM3: convertFromCubicCentimeters(estimate?.totalVolume ?? 0, packConfigVolumeUnit),
+    totalOrderQuantity: estimate?.totalOrderQuantity ?? 0,
+  };
+
+  const copyAudit = () => {
+    void navigator.clipboard?.writeText(JSON.stringify(auditSnapshot, null, 2));
+  };
+
+  return (
+    <section className="rounded-lg border border-slate-800 bg-slate-950/60 p-4">
+      <h3 className="text-sm font-semibold text-cyan-100">Calculation audit</h3>
+      <div className="mt-3 space-y-2 text-sm">
+        <div className="flex justify-between gap-4 border-b border-slate-800 pb-2">
+          <span className="text-slate-500">Selected pallet</span>
+          <span className="text-right font-semibold text-slate-200">
+            {palletType ? palletType.name : 'No pallet selected'}
+          </span>
+        </div>
+        <div className="flex justify-between gap-4 border-b border-slate-800 pb-2">
+          <span className="text-slate-500">Pallet dimensions</span>
+          <span className="text-right font-semibold text-slate-200">
+            {palletType ? formatPalletDimensions(palletType) : '-'}
+          </span>
+        </div>
+        <div className="flex justify-between gap-4 border-b border-slate-800 pb-2">
+          <span className="text-slate-500">Pallet capacity</span>
+          <span className="text-right font-semibold text-slate-200">
+            {formatVolume(palletVolume, packConfigVolumeUnit)}
+          </span>
+        </div>
+        <div className="flex justify-between gap-4 border-b border-slate-800 pb-2">
+          <span className="text-slate-500">Restack method</span>
+          <span className="text-right font-semibold text-slate-200">
+            {getPackingModeLabel(packingMode)}
+          </span>
+        </div>
+        <div className="flex justify-between gap-4 border-b border-slate-800 pb-2">
+          <span className="text-slate-500">Total box volume</span>
+          <span className="text-right font-semibold text-slate-200">
+            {formatVolume(estimate?.totalVolume ?? 0, packConfigVolumeUnit)}
+          </span>
+        </div>
+        <div className="flex justify-between gap-4 border-b border-slate-800 pb-2">
+          <span className="text-slate-500">Order rows read</span>
+          <span className="text-right font-semibold text-slate-200">{orderRowsWithData}</span>
+        </div>
+        <div className="flex justify-between gap-4 border-b border-slate-800 pb-2">
+          <span className="text-slate-500">Pack rows read</span>
+          <span className="text-right font-semibold text-slate-200">{packRowsWithData}</span>
+        </div>
+        <div className="flex justify-between gap-4 border-b border-slate-800 pb-2">
+          <span className="text-slate-500">Matched SKUs</span>
+          <span className="text-right font-semibold text-slate-200">{estimate?.skus.length ?? 0}</span>
+        </div>
+        <div className="flex justify-between gap-4 border-b border-slate-800 pb-2">
+          <span className="text-slate-500">Total boxes</span>
+          <span className="text-right font-semibold text-slate-200">{estimate?.totalBoxes ?? 0}</span>
+        </div>
+        <div className="flex justify-between gap-4 border-b border-slate-800 pb-2">
+          <span className="text-slate-500">Missing / invalid pack rows</span>
+          <span className="text-right font-semibold text-slate-200">
+            {estimate
+              ? `${estimate.missingPackConfigs.length} / ${estimate.invalidPackConfigs.length}`
+              : '0 / 0'}
+          </span>
+        </div>
+        <div className="flex justify-between gap-4">
+          <span className="text-slate-500">Volume minimum pallets</span>
+          <span className="text-right font-semibold text-slate-200">
+            {theoreticalMinimumPallets}
+          </span>
+        </div>
+      </div>
+      <button
+        className="mt-3 w-full rounded-md border border-slate-700 px-3 py-2 text-sm font-semibold text-slate-200 transition hover:border-cyan-400/60 hover:text-cyan-100"
+        type="button"
+        onClick={copyAudit}
+      >
+        Copy Audit
+      </button>
+      <p className="mt-3 text-xs leading-5 text-slate-500">
+        Use this block to compare localhost and Vercel. If pallet dimensions, capacity, total
+        volume, total boxes, or rows read differ, the pallet total will differ.
+      </p>
+    </section>
   );
 }
 
@@ -124,6 +256,11 @@ const hasPackConfigData = (data: SheetData) =>
       getCellText(data, rowIndex, 4) &&
       getCellText(data, rowIndex, 5),
   );
+
+const countRowsWithCells = (data: SheetData, columnIndexes: number[]) =>
+  data.filter((_, rowIndex) =>
+    columnIndexes.some((columnIndex) => getCellText(data, rowIndex, columnIndex)),
+  ).length;
 
 export function PalletEstimate({
   locations,
@@ -248,10 +385,13 @@ export function PalletEstimate({
 
     writeLine('Pallet Plan', 16, 9);
     writeLine(`Pallet type: ${estimate.palletType.name}`);
+    writeLine(`Pallet dimensions: ${formatPalletDimensions(estimate.palletType)}`);
+    writeLine(`Pallet capacity: ${formatVolume(estimate.palletVolume, packConfigVolumeUnit)}`);
     writeLine(`Pallets: ${estimate.pallets.length}`);
     writeLine(`Total boxes: ${estimate.totalBoxes}`);
     writeLine(`Total volume: ${formatVolume(estimate.totalVolume, packConfigVolumeUnit)}`);
-    writeLine(`Restack method: ${packingModeOptions.find((option) => option.id === packingMode)?.label ?? packingMode}`);
+    writeLine(`Volume minimum pallets: ${Math.ceil(estimate.totalVolume / estimate.palletVolume)}`);
+    writeLine(`Restack method: ${getPackingModeLabel(packingMode)}`);
     writeLine(`Utilization: ${estimate.utilization}%`, 10, 10);
 
     estimate.pallets.forEach((pallet) => {
@@ -468,6 +608,14 @@ export function PalletEstimate({
           <MetricCard label="Boxes" value={estimate?.totalBoxes ?? 0} />
           <MetricCard label="Volume" value={formatVolume(estimate?.totalVolume ?? 0, packConfigVolumeUnit)} />
         </div>
+
+        <CalculationAudit
+          estimate={estimate}
+          orderLines={orderLines}
+          packConfig={packConfig}
+          packingMode={packingMode}
+          selectedPalletType={selectedPalletType}
+        />
 
         <WarningList items={warningItems} title="Pack config issues" />
         <WarningList
