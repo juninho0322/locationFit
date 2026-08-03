@@ -2,12 +2,14 @@ import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import {
   Box,
   ChevronDown,
+  ClipboardCheck,
   ClipboardList,
   FileText,
   Grid3X3,
   PackageCheck,
   Trash2,
 } from 'lucide-react';
+import { CalculationAudit } from './components/CalculationAudit';
 import { LocationForm } from './components/LocationForm';
 import { LocationSelector } from './components/LocationSelector';
 import { PalletEstimate } from './components/PalletEstimate';
@@ -15,9 +17,20 @@ import { PasteSpreadsheet } from './components/PasteSpreadsheet';
 import { ThreeDViewer } from './components/ThreeDViewer';
 import { useLocalStorage } from './hooks/useLocalStorage';
 import type { Location } from './types';
+import {
+  createLocationPalletType,
+  type PackingMode,
+  type PalletEstimateResult,
+} from './utils/palletEstimator';
 import { createSheetData, type SheetData } from './utils/sheetData';
 
-type ViewId = 'pallet-estimate' | 'order-line' | 'pack-config' | 'pallet-setup' | 'documentation';
+type ViewId =
+  | 'pallet-estimate'
+  | 'order-line'
+  | 'pack-config'
+  | 'pallet-setup'
+  | 'audit'
+  | 'documentation';
 
 const navigationItems = [
   {
@@ -43,6 +56,12 @@ const navigationItems = [
     label: 'Pallet Setup',
     description: 'Location dimensions',
     icon: Box,
+  },
+  {
+    id: 'audit',
+    label: 'Audit',
+    description: 'Calculation check',
+    icon: ClipboardCheck,
   },
   {
     id: 'documentation',
@@ -108,6 +127,8 @@ function App() {
   const [activeView, setActiveView] = useState<ViewId>('pallet-estimate');
   const [activeDocumentationTopic, setActiveDocumentationTopic] =
     useState<DocumentationTopicId>('workflow');
+  const [estimate, setEstimate] = useState<PalletEstimateResult | null>(null);
+  const [packingMode, setPackingMode] = useState<PackingMode>('box-size');
   const [locations, setLocations] = useLocalStorage<Location[]>('location-box-fit.locations', []);
   const [selectedLocationId, setSelectedLocationId] = useLocalStorage<string>(
     'location-box-fit.selectedLocationId',
@@ -141,6 +162,10 @@ function App() {
     () => countFilledRows(packConfig),
     [packConfig],
   );
+
+  useEffect(() => {
+    setEstimate(null);
+  }, [orderLines, packConfig, selectedLocationId]);
 
   const addLocation = (location: Location) => {
     setLocations((current) => [...current, location]);
@@ -210,10 +235,34 @@ function App() {
           aside={`${filledOrderRows} order rows / ${filledPackRows} pack rows`}
         >
           <PalletEstimate
+            estimate={estimate}
             locations={locations}
             orderLines={orderLines}
             packConfig={packConfig}
+            packingMode={packingMode}
             selectedLocation={selectedLocation}
+            setEstimate={setEstimate}
+            setPackingMode={setPackingMode}
+          />
+        </WorkspacePanel>
+      );
+    }
+
+    if (activeView === 'audit') {
+      const selectedPalletType = selectedLocation ? createLocationPalletType(selectedLocation) : null;
+
+      return (
+        <WorkspacePanel
+          eyebrow="Audit"
+          title="Calculation audit"
+          aside={estimate ? `${estimate.pallets.length} pallets` : 'No estimate yet'}
+        >
+          <CalculationAudit
+            estimate={estimate}
+            orderLines={orderLines}
+            packConfig={packConfig}
+            packingMode={packingMode}
+            selectedPalletType={selectedPalletType}
           />
         </WorkspacePanel>
       );
