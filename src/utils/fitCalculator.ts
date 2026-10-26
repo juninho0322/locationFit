@@ -1,23 +1,10 @@
 import type {
   BoxDimensions,
   BoxPosition,
-  DimensionKey,
   FitResult,
   Location,
   Orientation,
 } from '../types';
-
-const sourceLabel: Record<DimensionKey, string> = {
-  width: 'box width',
-  depth: 'box depth',
-  height: 'box height',
-};
-
-const sourceShortLabel: Record<DimensionKey, string> = {
-  width: 'W',
-  depth: 'D',
-  height: 'H',
-};
 
 const formatNumber = (value: number) =>
   Number.isInteger(value) ? String(value) : value.toFixed(2).replace(/\.?0+$/, '');
@@ -79,26 +66,10 @@ export const getBoxOrientations = (box: BoxDimensions): Orientation[] => [
   },
 ];
 
-export const describeOrientation = (orientation: Orientation): string =>
-  `${sourceLabel[orientation.widthSource]} goes along shelf width, ` +
-  `${sourceLabel[orientation.depthSource]} goes along shelf depth, ` +
-  `${sourceLabel[orientation.heightSource]} goes along shelf height.`;
-
-export const formatOrientationDimensions = (orientation: Orientation): string =>
-  `${sourceShortLabel[orientation.widthSource]} ${formatNumber(
-    orientation.width,
-  )} cm -> shelf width, ${sourceShortLabel[orientation.depthSource]} ${formatNumber(
-    orientation.depth,
-  )} cm -> shelf depth, ${sourceShortLabel[orientation.heightSource]} ${formatNumber(
-    orientation.height,
-  )} cm -> shelf height`;
-
 export const formatMeasurement = (value: number): string => formatNumber(value);
 
-export const getDimensionShortLabel = (dimension: DimensionKey): string =>
-  sourceShortLabel[dimension];
-
 const hasPositiveDimensions = (location: Location, box: BoxDimensions) =>
+  [location.width, location.depth, location.height, box.width, box.depth, box.height, box.quantity].every(Number.isFinite) &&
   location.width > 0 &&
   location.depth > 0 &&
   location.height > 0 &&
@@ -124,7 +95,7 @@ const createBoxPositions = (
   for (let heightIndex = 0; heightIndex < boxesAcrossHeight; heightIndex += 1) {
     for (let depthIndex = 0; depthIndex < boxesAcrossDepth; depthIndex += 1) {
       for (let widthIndex = 0; widthIndex < boxesAcrossWidth; widthIndex += 1) {
-        if (positions.length >= boxesThatFit) {
+        if (positions.length >= Math.min(boxesThatFit, 1500)) {
           return positions;
         }
 
@@ -175,9 +146,9 @@ export const calculateBestFit = (
 
   const bestFit = getBoxOrientations(box)
     .map((orientation) => {
-      const boxesAcrossWidth = Math.floor(location.width / orientation.width);
-      const boxesAcrossDepth = Math.floor(location.depth / orientation.depth);
-      const boxesAcrossHeight = Math.floor(location.height / orientation.height);
+      const boxesAcrossWidth = Math.floor(location.width / orientation.width + 1e-9);
+      const boxesAcrossDepth = Math.floor(location.depth / orientation.depth + 1e-9);
+      const boxesAcrossHeight = Math.floor(location.height / orientation.height + 1e-9);
       const totalCapacity =
         boxesAcrossWidth * boxesAcrossDepth * boxesAcrossHeight;
       const usedVolume =

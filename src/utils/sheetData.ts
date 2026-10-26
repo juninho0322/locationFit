@@ -1,11 +1,3 @@
-import type { CellBase, Matrix } from 'react-spreadsheet';
-
-export type SheetCell = CellBase<string>;
-export type SheetData = Matrix<SheetCell>;
-
-const makeEmptyCell = (): SheetCell => ({ value: '' });
-
-export const createSheetData = (rows: number, columns: number): SheetData =>
-  Array.from({ length: rows }, () =>
-    Array.from({ length: columns }, () => makeEmptyCell()),
-  );
+// Legacy spreadsheet cells remain supported for migration and the packing adapter.
+// This data contract does not depend on the removed spreadsheet UI package.
+export type SheetData = Array<Array<{ value: string } | undefined>>;

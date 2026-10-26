@@ -1,93 +1,8 @@
 import type { Location } from '../types';
+import { getLocationKind, locationDisplayLabel } from './locations';
 import type { SheetData } from './sheetData';
 
-export interface PalletType {
-  id: string;
-  name: string;
-  width: number;
-  depth: number;
-  height: number;
-}
-
-export type VolumeUnit = 'cm3' | 'm3' | 'litres';
-export type DimensionUnit = 'auto' | 'cm' | 'm' | 'mm';
-export type PackingMode = 'box-size' | 'column-stack' | 'free-placement';
-
-export interface EstimateSku {
-  sku: string;
-  orderQuantity: number;
-  packSku: string;
-  ratio: number;
-  width: number;
-  depth: number;
-  height: number;
-  boxVolume: number;
-  exactBoxes: number;
-  fullBoxes: number;
-  partialBoxes: number;
-  boxesRequired: number;
-  totalVolume: number;
-  hasPartialBox: boolean;
-}
-
-export interface MissingPackConfig {
-  sku: string;
-  orderQuantity: number;
-}
-
-export interface InvalidPackConfig {
-  sku: string;
-  packSku: string;
-  reason: string;
-}
-
-export interface PackedPalletLine {
-  sku: string;
-  boxVolume: number;
-  boxes: number;
-  depth: number;
-  height: number;
-  partialBoxes: number;
-  volume: number;
-  width: number;
-}
-
-export interface PackedBox {
-  id: string;
-  sku: string;
-  x: number;
-  y: number;
-  z: number;
-  width: number;
-  depth: number;
-  height: number;
-  volume: number;
-  isPartial: boolean;
-}
-
-export interface PackedPallet {
-  id: string;
-  index: number;
-  usedVolume: number;
-  remainingVolume: number;
-  boxes: PackedBox[];
-  lines: PackedPalletLine[];
-}
-
-export interface PalletEstimateResult {
-  palletType: PalletType;
-  palletVolume: number;
-  totalOrderQuantity: number;
-  totalBoxes: number;
-  totalVolume: number;
-  utilization: number;
-  skus: EstimateSku[];
-  pallets: PackedPallet[];
-  missingPackConfigs: MissingPackConfig[];
-  invalidPackConfigs: InvalidPackConfig[];
-  oversizedSkus: EstimateSku[];
-  partialBoxSkus: EstimateSku[];
-}
+import type { PalletType, VolumeUnit, DimensionUnit, PackingMode, EstimateSku, MissingPackConfig, InvalidPackConfig, PackedBox, PackedPallet, PalletEstimateResult } from '../types/packing';
 
 const orderSkuColumn = 0;
 const orderQuantityColumn = 2;
@@ -112,16 +27,12 @@ const dimensionMultipliers: Record<Exclude<DimensionUnit, 'auto'>, number> = {
 
 const dimensionUnitCandidates: Array<Exclude<DimensionUnit, 'auto'>> = ['m', 'cm', 'mm'];
 
-export const defaultPalletTypes: PalletType[] = [
-  { id: 'euro', name: 'Euro pallet - 120 x 80 x 150 cm', width: 120, depth: 80, height: 150 },
-  { id: 'uk', name: 'UK pallet - 120 x 100 x 150 cm', width: 120, depth: 100, height: 150 },
-  { id: 'tall-uk', name: 'Tall UK pallet - 120 x 100 x 180 cm', width: 120, depth: 100, height: 180 },
-];
-
 export const getPalletVolume = (palletType: PalletType) =>
   palletType.width * palletType.depth * palletType.height;
 
 export const createLocationPalletType = (location: Location): PalletType => ({
+  locationKind: getLocationKind(location),
+  displayLabel: locationDisplayLabel(location),
   id: `location-${location.id}`,
   name: `${location.name} - ${location.width} x ${location.depth} x ${location.height} cm`,
   width: location.width,
@@ -1477,7 +1388,19 @@ const packPallets = (
   skus: EstimateSku[],
   palletType: PalletType,
   packingMode: PackingMode,
-): { oversizedSkus: EstimateSku[]; pallets: PackedPallet[] } => {
+): { oversizedSkus: EstimateSku[]; pallets: PackedPallet[]; packingMethod: Exclude<PackingMode, 'auto'> } => {
+  // Pack each SKU independently; never consolidate across SKU boundaries.
+  if (packingMode === 'sku-separated') {
+    const results = skus.map((sku) => packPallets([sku], palletType, 'auto'));
+    const pallets = results.flatMap((result) => result.pallets).map((pallet, index) => ({
+      ...pallet, id: `pallet-${index + 1}`, index: index + 1,
+    }));
+    return {
+      pallets,
+      oversizedSkus: results.flatMap((result) => result.oversizedSkus),
+      packingMethod: 'sku-separated',
+    };
+  }
   const palletVolume = getPalletVolume(palletType);
   const oversizedSkus: EstimateSku[] = [];
   const oversizedSkuIds = new Set<string>();
@@ -1502,6 +1425,9 @@ const packPallets = (
     });
 
   const boxUnits = createBoxUnits(skus.filter((sku) => !oversizedSkuIds.has(sku.sku)));
+  if (packingMode === 'box-size') {
+    return { oversizedSkus, pallets: packFamilyFirstSequence(boxUnits, palletType, palletVolume), packingMethod: packingMode };
+  }
   const strategies: PackingStrategy[] =
     boxUnits.length > 1200
       ? ['orientation-fill', 'volume', 'base-area']
@@ -1519,6 +1445,9 @@ const packPallets = (
 
     return chooseBetterPacking(bestPacking, candidate);
   }, null);
+  if (packingMode === 'column-stack') {
+    return { oversizedSkus, pallets: columnPacking ?? [], packingMethod: packingMode };
+  }
   const familyFirstPacking = packFamilyFirstSequence(boxUnits, palletType, palletVolume);
   const freePacking = strategies.reduce<PackedPallet[] | null>((bestPacking, strategy) => {
     const candidate = packBoxSequence(
@@ -1529,14 +1458,28 @@ const packPallets = (
 
     return chooseBetterPacking(bestPacking, candidate);
   }, null) ?? [];
-  const selectedPallets = packingMode === 'box-size'
-    ? familyFirstPacking
-    : packingMode === 'column-stack'
-      ? columnPacking ?? []
-      : freePacking;
-  const pallets = consolidatePallets(selectedPallets, palletType, palletVolume);
-
-  return { oversizedSkus, pallets };
+  const candidates: Array<{ mode: Exclude<PackingMode, 'auto'>; pallets: PackedPallet[] }> = [
+    { mode: 'box-size', pallets: familyFirstPacking },
+    { mode: 'column-stack', pallets: columnPacking ?? [] },
+    { mode: 'free-placement', pallets: freePacking },
+  ];
+  let best: PackedPallet[] | null = null;
+  let packingMethod: Exclude<PackingMode, 'auto'> = 'box-size';
+  for (const candidate of candidates) {
+    if (packingMode !== 'auto' && packingMode !== candidate.mode) continue;
+    // Free repacking would destroy column or family layouts selected by the user.
+    const packed = candidate.mode === 'free-placement'
+      ? [familyFirstPacking, columnPacking ?? [], freePacking].reduce<PackedPallet[] | null>(
+        (best, seed) => chooseBetterPacking(best, consolidatePallets(seed, palletType, palletVolume)),
+        null,
+      ) ?? []
+      : candidate.pallets;
+    if (chooseBetterPacking(best, packed) === packed) {
+      best = packed;
+      packingMethod = candidate.mode;
+    }
+  }
+  return { oversizedSkus, pallets: best ?? [], packingMethod };
 };
 
 export const calculatePalletEstimate = (
@@ -1546,7 +1489,11 @@ export const calculatePalletEstimate = (
   volumeUnit: VolumeUnit,
   dimensionUnit: DimensionUnit,
   packingMode: PackingMode,
+  exactSkuMatching = false,
 ): PalletEstimateResult => {
+  if (palletType.locationKind === 'pick-face') {
+    throw new Error('Pick faces cannot be used for order planning. Select a pallet or cage.');
+  }
   const palletVolume = getPalletVolume(palletType);
   const packRows = new Map<string, {
     depth: number;
@@ -1564,7 +1511,7 @@ export const calculatePalletEstimate = (
       return;
     }
 
-    const sku = normalizePackSku(packSku);
+    const sku = exactSkuMatching ? normalizeSku(packSku) : normalizePackSku(packSku);
     const volume = convertToCubicCentimeters(
       parseNumber(getCellValue(packConfig, rowIndex, packVolumeColumn)),
       volumeUnit,
@@ -1651,13 +1598,14 @@ export const calculatePalletEstimate = (
     });
   });
 
-  const { oversizedSkus, pallets } = packPallets(skus, palletType, packingMode);
+  const { oversizedSkus, pallets, packingMethod } = packPallets(skus, palletType, packingMode);
   const totalVolume = pallets.reduce((total, pallet) => total + pallet.usedVolume, 0);
   const totalBoxes = skus.reduce((total, sku) => total + sku.boxesRequired, 0);
   const totalOrderQuantity = skus.reduce((total, sku) => total + sku.orderQuantity, 0);
   const totalCapacity = pallets.length * palletVolume;
 
   return {
+    packingMethod,
     palletType,
     palletVolume,
     totalOrderQuantity,
